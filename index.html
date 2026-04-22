@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeStream To-Do</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans">
+
+    <div class="max-w-md mx-auto min-h-screen flex flex-col p-6">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-indigo-600">My Objectives</h1>
+            <p class="text-slate-500">Set it, time it, nail it.</p>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-slate-100">
+            <div class="space-y-4">
+                <input id="taskInput" type="text" placeholder="What's the objective?" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="flex gap-2">
+                    <input id="timeInput" type="time" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none">
+                    <button onclick="addTask()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="taskList" class="space-y-4 flex-1">
+            </div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+        // Request notification permission on load
+        if ("Notification" in window) {
+            Notification.requestPermission();
+        }
+
+        function addTask() {
+            const taskName = document.getElementById('taskInput').value;
+            const taskTime = document.getElementById('timeInput').value;
+
+            if (!taskName || !taskTime) return alert("Fill in both fields!");
+
+            const newTask = {
+                id: Date.now(),
+                name: taskName,
+                time: taskTime,
+                completed: false,
+                notified: false
+            };
+
+            tasks.push(newTask);
+            saveAndRender();
+            
+            // Reset inputs
+            document.getElementById('taskInput').value = '';
+            document.getElementById('timeInput').value = '';
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+
+            tasks.sort((a, b) => a.time.localeCompare(b.time)).forEach(task => {
+                const card = document.createElement('div');
+                card.className = `flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border-l-4 ${task.completed ? 'border-green-500 opacity-60' : 'border-indigo-500'}`;
+                
+                card.innerHTML = `
+                    <div>
+                        <p class="font-bold ${task.completed ? 'line-through' : ''}">${task.name}</p>
+                        <p class="text-sm text-slate-500"><i class="far fa-clock mr-1"></i> Finish by ${task.time}</p>
+                    </div>
+                    <button onclick="toggleTask(${task.id})" class="h-10 w-10 rounded-full border-2 flex items-center justify-center ${task.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200'}">
+                        <i class="fas fa-check"></i>
+                    </button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            saveAndRender();
+        }
+
+        // Notification Engine
+        setInterval(() => {
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            tasks.forEach(task => {
+                if (task.time === currentTime && !task.notified && !task.completed) {
+                    new Notification("Objective Check-in", {
+                        body: `Is "${task.name}" finished yet?`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/906/906334.png"
+                    });
+                    task.notified = true;
+                    saveAndRender();
+                }
+            });
+        }, 10000); // Check every 10 seconds
+
+        renderTasks();
+    </script>
+</body>
+</html>
